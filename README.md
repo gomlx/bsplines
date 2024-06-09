@@ -1,7 +1,7 @@
 # B-Spline function support for Go 
 
-[![GoDev](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/gomlx/gomlx?tab=doc)
-[![GitHub](https://img.shields.io/github/license/gomlx/gomlx)](https://github.com/Kwynto/gosession/blob/master/LICENSE)
+[![GoDev](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/gomlx/bsplines?tab=doc)
+[![GitHub](https://img.shields.io/github/license/gomlx/bsplines)](https://github.com/Kwynto/gosession/blob/master/LICENSE)
 
 # [Example With Plots](https://gomlx.github.io/bsplines/)
 
