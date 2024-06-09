@@ -141,7 +141,7 @@ func (e *evalData) basisFunction(degree int) *Node {
 	recursiveBasis := e.basisFunction(degree - 1)
 
 	// Find knotsDelta `degree` steps ahead: replace zeros with ones for numeric safety.
-	knotsDelta := Sub(Shift(e.knots, -1, ShiftLeftDir, degree), e.knots)
+	knotsDelta := Sub(Shift(e.knots, -1, ShiftDirLeft, degree), e.knots)
 	//knotsDelta.SetLogged(fmt.Sprintf("knotsDelta(%d)", degree))
 	knotsDeltaIsZero := Equal(knotsDelta, ZerosLike(knotsDelta))
 	knotsDelta = Where(knotsDeltaIsZero, OnesLike(knotsDelta), knotsDelta)
@@ -156,12 +156,12 @@ func (e *evalData) basisFunction(degree int) *Node {
 	left := Mul(weightsLeft, recursiveBasis)
 	//left.SetLogged(fmt.Sprintf("left(%d)", degree))
 
-	weightsRight := Sub(Shift(e.knots, -1, ShiftLeftDir, degree+1), e.flatInputs)
-	weightsRight = Div(weightsRight, Shift(knotsDelta, -1, ShiftLeftDir, 1))
+	weightsRight := Sub(Shift(e.knots, -1, ShiftDirLeft, degree+1), e.flatInputs)
+	weightsRight = Div(weightsRight, Shift(knotsDelta, -1, ShiftDirLeft, 1))
 	weightsRight = Where(
-		broadcastToBasis(Shift(knotsDeltaIsZero, -1, ShiftLeftDir, 1)),
+		broadcastToBasis(Shift(knotsDeltaIsZero, -1, ShiftDirLeft, 1)),
 		zeros, weightsRight)
-	right := Mul(weightsRight, Shift(recursiveBasis, -1, ShiftLeftDir, 1))
+	right := Mul(weightsRight, Shift(recursiveBasis, -1, ShiftDirLeft, 1))
 	//right.SetLogged(fmt.Sprintf("right(%d)", degree))
 	return Add(left, right)
 }
