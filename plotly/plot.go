@@ -49,13 +49,16 @@ func (c *Config) WithMargin(marginRatio float64) *Config {
 // It returns an error if plotting failed for some reason.
 func (c *Config) Plot() error {
 	knots := c.bspline.Knots()
-	x, bsplineY := make([]float64, c.numPlotPoints), make([]float64, c.numPlotPoints)
+	derivative := c.bspline.Derivative()
+
+	x, bsplineY, derivativeY := make([]float64, c.numPlotPoints), make([]float64, c.numPlotPoints), make([]float64, c.numPlotPoints)
 	first, last := knots[0], xslices.Last(knots)
 	delta := last - first
 	first, last = first-c.marginRatio*delta, last+c.marginRatio*delta
 	for ii := range c.numPlotPoints {
 		x[ii] = first + (last-first)*float64(ii)/float64(c.numPlotPoints)
 		bsplineY[ii] = c.bspline.Evaluate(x[ii])
+		derivativeY[ii] = derivative.Evaluate(x[ii])
 	}
 	basisPlots := make([][]float64, c.bspline.NumControlPoints())
 	for controlIdx := range len(basisPlots) {
@@ -70,8 +73,7 @@ func (c *Config) Plot() error {
 	fig := &grob.Fig{
 		Data: grob.Traces{
 			&grob.Bar{
-				Name: "Control Points",
-				//Type:       grob.TraceType,
+				Name:       "Control Points",
 				X:          c.bspline.ControlPointsX(),
 				Y:          controls,
 				Showlegend: grob.True,
@@ -82,12 +84,19 @@ func (c *Config) Plot() error {
 				},
 			},
 			&grob.Bar{
-				Name: "B-Spline (CPU)",
-				//Type:       grob.TraceType,
+				Name:       "B-spline",
 				X:          x,
 				Y:          bsplineY,
 				Width:      2.0,
 				Showlegend: grob.True,
+			},
+			&grob.Bar{
+				Name:       "1st derivative",
+				X:          x,
+				Y:          derivativeY,
+				Width:      2.0,
+				Showlegend: grob.True,
+				Visible:    grob.BarVisibleLegendonly,
 			},
 		},
 		Layout: &grob.Layout{

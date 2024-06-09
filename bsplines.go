@@ -239,3 +239,32 @@ func (b *BSpline) BasisFunction(controlPointIdx, degree int, x float64) float64 
 	}
 	return left + right
 }
+
+// Derivative creates the derivative BSpline of the given BSpline.
+// Notice the control points must have been set with [WithControlPoints].
+//
+// The returned [BSpline] have the same knots, and the degree will be one less than the original.
+// The control points are updated.
+func (b *BSpline) Derivative() *BSpline {
+	knots := b.Knots()
+	degree := b.degree - 1
+	control := b.controlPoints
+	newControl := make([]float64, b.NumControlPoints()-1)
+	for ii := range newControl {
+		// q_i = p * (c_{i+1} - c_i) / (knot_{i+p+1} - knot_{i+1})
+		newControl[ii] = float64(b.degree) *
+			(control[ii+1] - control[ii]) /
+			(b.expandedKnots[ii+1+b.degree] - b.expandedKnots[ii+1])
+	}
+	// Extrapolation of the derivative is zero, except if original extrapolation was linear, in which case it is
+	// constant.
+	var extrapolation ExtrapolationType
+	switch b.extrapolation {
+	case ExtrapolateZero, ExtrapolateConstant:
+		extrapolation = ExtrapolateZero
+	case ExtrapolateLinear:
+		extrapolation = ExtrapolateConstant
+	}
+	//fmt.Printf("derivative(p=%d): new control points are %v\n", p, newControl)
+	return New(degree, knots).WithExtrapolation(extrapolation).WithControlPoints(newControl)
+}
