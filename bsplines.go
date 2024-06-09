@@ -10,9 +10,17 @@ package bsplines
 
 import (
 	"github.com/gomlx/exceptions"
-	xslices "github.com/gomlx/gomlx/types/slices"
 	"slices"
 )
+
+// At accesses an arbitrary element of the slice. The difference from the `[]` operator is that it allows
+// negative numbers: they are counted from the end of the slice: so -1 refers to the last element.
+func At[E any](slice []E, idx int) E {
+	if idx < 0 {
+		idx = len(slice) + idx
+	}
+	return slice[idx]
+}
 
 //go:generate stringer -type=ExtrapolationType
 
@@ -39,6 +47,10 @@ type BSpline struct {
 	degree                       int
 	expandedKnots, controlPoints []float64
 	extrapolation                ExtrapolationType
+
+	// knot(x-coordinate) value for controlPoints[1] and controlPoints[-1], used for
+	// linear extrapolation.
+	knotValueForControlPoint1, knotValueForControlPointM2 float64
 }
 
 // New create a new B-spline with the given [degree] (`order == degree+1`).
@@ -68,18 +80,25 @@ func New(degree int, knots []float64) *BSpline {
 	for ii := range degree {
 		// Set clamping points.
 		b.expandedKnots[ii] = knots[0]
-		b.expandedKnots[len(b.expandedKnots)-ii-1] = xslices.Last(knots)
+		b.expandedKnots[len(b.expandedKnots)-ii-1] = At(knots, -1)
 	}
 	copy(b.expandedKnots[degree:len(b.expandedKnots)-degree], knots)
+
+	// Find control points x-coordinate values:
+	controlX := b.ControlPointsX()
+	b.knotValueForControlPoint1, b.knotValueForControlPointM2 = controlX[1], At(controlX, -2)
 	return b
 }
 
-// NewRegular create a new B-spline that is defined with knots from 0.0 to 1.0, equally spaced.
-// [numKnots] must be at least 2.
-func NewRegular(degree, numKnots int) *BSpline {
-	if numKnots < 2 {
-		exceptions.Panicf("bsplines.NewRegular requires numKnots=%d >= 2", numKnots)
+// NewRegular creates a new B-spline that is defined with enough knots for [numControlPoints].
+// The knots are created evenly spaced from 0.0 to 1.0.
+//
+// [numControlPoints] must be at least `degree + 1`.
+func NewRegular(degree, numControlPoints int) *BSpline {
+	if numControlPoints < degree+1 {
+		exceptions.Panicf("bsplines.NewRegular requires numControlPoints=%d >= 2", numControlPoints)
 	}
+	numKnots := numControlPoints - degree + 1
 	knots := make([]float64, numKnots)
 	for ii := range knots {
 		knots[ii] = float64(ii) / float64(numKnots-1)
@@ -135,10 +154,11 @@ func (b *BSpline) ControlPoints() []float64 {
 
 // ControlPointsX calculates the [x] values for each one of the control points.
 // These values are not something used in the evaluation, but are handy to plot the control points,
-// since they are at the center of its area of influece.
+// since they are at the center of its area of influence.
 func (b *BSpline) ControlPointsX() []float64 {
-	xs := make([]float64, len(b.controlPoints))
-	for ii := range len(b.controlPoints) {
+	numControlPoints := b.NumControlPoints()
+	xs := make([]float64, numControlPoints)
+	for ii := range numControlPoints {
 		if ii == 0 {
 			xs[ii] = b.expandedKnots[0]
 		} else if ii == len(b.expandedKnots)-1 {
@@ -161,12 +181,40 @@ func (b *BSpline) Evaluate(x float64) float64 {
 	if len(b.controlPoints) == 0 {
 		exceptions.Panicf("BSpline.Evaluate() require control points to be set using BSpline.WithControlPoints()")
 	}
+	if x < b.expandedKnots[0] || x >= b.expandedKnots[len(b.expandedKnots)-1] {
+		return b.extrapolate(x)
+	}
 	var result float64
 	for controlPointIdx, controlPoint := range b.controlPoints {
 		basis := b.BasisFunction(controlPointIdx, b.degree, x)
 		result += controlPoint * basis
 	}
 	return result
+}
+
+// extrapolate calculates the extrapolation of the b-spline for [x] -- [x] expected to be outside the knots.
+func (b *BSpline) extrapolate(x float64) float64 {
+	switch b.extrapolation {
+	case ExtrapolateZero:
+		return 0.0
+	case ExtrapolateConstant:
+		if x < b.expandedKnots[0] {
+			return b.controlPoints[0]
+		} else {
+			return b.controlPoints[len(b.controlPoints)-1]
+		}
+	case ExtrapolateLinear:
+		if x < b.expandedKnots[0] {
+			linearCoef := (b.controlPoints[1] - b.controlPoints[0]) /
+				(b.knotValueForControlPoint1 - b.expandedKnots[0])
+			return b.controlPoints[0] + (x-b.expandedKnots[0])*linearCoef
+		} else {
+			linearCoef := (At(b.controlPoints, -1) - At(b.controlPoints, -2)) /
+				(At(b.expandedKnots, -1) - b.knotValueForControlPointM2)
+			return At(b.controlPoints, -1) + (x-At(b.expandedKnots, -1))*linearCoef
+		}
+	}
+	return 0.0
 }
 
 // BasisFunction calculates the B-spline basis function arbitrary degree at parameter x.

@@ -35,9 +35,9 @@ func (c *Config) WithNumPlotPoints(numPlotPoints int) *Config {
 	return c
 }
 
-// WithMarginRatio defines how much space (relative to the defined B-spline range) to plot.
+// WithMargin defines how much space (relative to the defined B-spline range) to plot.
 // It defaults to 0.1, and it's handy to see how the curve is going to extrapolate beyond its boundaries.
-func (c *Config) WithMarginRatio(marginRatio float64) *Config {
+func (c *Config) WithMargin(marginRatio float64) *Config {
 	if marginRatio < 0 {
 		marginRatio = 0
 	}
@@ -49,29 +49,24 @@ func (c *Config) WithMarginRatio(marginRatio float64) *Config {
 // It returns an error if plotting failed for some reason.
 func (c *Config) Plot() error {
 	knots := c.bspline.Knots()
-	x, yCPU, yXLA := make([]float64, c.numPlotPoints), make([]float64, c.numPlotPoints), make([]float64, c.numPlotPoints)
-	_ = yXLA
+	x, bsplineY := make([]float64, c.numPlotPoints), make([]float64, c.numPlotPoints)
 	first, last := knots[0], xslices.Last(knots)
 	delta := last - first
 	first, last = first-c.marginRatio*delta, last+c.marginRatio*delta
 	for ii := range c.numPlotPoints {
 		x[ii] = first + (last-first)*float64(ii)/float64(c.numPlotPoints)
-		yCPU[ii] = c.bspline.Evaluate(x[ii])
-		//yXLA[ii] = b.Eval(x[ii])
+		bsplineY[ii] = c.bspline.Evaluate(x[ii])
 	}
-
 	basisPlots := make([][]float64, c.bspline.NumControlPoints())
 	for controlIdx := range len(basisPlots) {
 		basisPlots[controlIdx] = make([]float64, c.numPlotPoints)
 		basisPlot := basisPlots[controlIdx]
 		for ii := range c.numPlotPoints {
-			x[ii] = first + (last-first)*float64(ii)/float64(c.numPlotPoints)
 			basisPlot[ii] = c.bspline.BasisFunction(controlIdx, c.bspline.Degree(), x[ii])
 		}
 	}
 
 	controls := c.bspline.ControlPoints()
-
 	fig := &grob.Fig{
 		Data: grob.Traces{
 			&grob.Bar{
@@ -90,20 +85,10 @@ func (c *Config) Plot() error {
 				Name: "B-Spline (CPU)",
 				//Type:       grob.TraceType,
 				X:          x,
-				Y:          yCPU,
+				Y:          bsplineY,
 				Width:      2.0,
 				Showlegend: grob.True,
 			},
-			/*
-				&grob.Bar{
-					Name: "B-Spline(XLA)",
-					//Type:       grob.TraceType,
-					X:          x,
-					Y:          yXLA,
-					Width:      2.0,
-					Showlegend: grob.True,
-				},
-			*/
 		},
 		Layout: &grob.Layout{
 			Title: &grob.LayoutTitle{
