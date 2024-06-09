@@ -13,9 +13,9 @@ import (
 	"slices"
 )
 
-// At accesses an arbitrary element of the slice. The difference from the `[]` operator is that it allows
+// at accesses an arbitrary element of the slice. The difference from the `[]` operator is that it allows
 // negative numbers: they are counted from the end of the slice: so -1 refers to the last element.
-func At[E any](slice []E, idx int) E {
+func at[E any](slice []E, idx int) E {
 	if idx < 0 {
 		idx = len(slice) + idx
 	}
@@ -80,13 +80,13 @@ func New(degree int, knots []float64) *BSpline {
 	for ii := range degree {
 		// Set clamping points.
 		b.expandedKnots[ii] = knots[0]
-		b.expandedKnots[len(b.expandedKnots)-ii-1] = At(knots, -1)
+		b.expandedKnots[len(b.expandedKnots)-ii-1] = at(knots, -1)
 	}
 	copy(b.expandedKnots[degree:len(b.expandedKnots)-degree], knots)
 
 	// Find control points x-coordinate values:
 	controlX := b.ControlPointsX()
-	b.knotValueForControlPoint1, b.knotValueForControlPointM2 = controlX[1], At(controlX, -2)
+	b.knotValueForControlPoint1, b.knotValueForControlPointM2 = controlX[1], at(controlX, -2)
 	return b
 }
 
@@ -141,18 +141,18 @@ func (b *BSpline) Knots() []float64 {
 	return b.expandedKnots[b.degree : len(b.expandedKnots)-b.degree]
 }
 
-// NumControlPoints returns the **expected** number of control points for the current knots.
+// NumControlPoints returns the expected number of control points for the current knots.
 func (b *BSpline) NumControlPoints() int {
 	return len(b.Knots()) + b.degree - 1
 }
 
-// ControlPoints returns the control points.
-// To change them, use [WithControlPoints] instead.
+// ControlPoints returns the control points. at creation time it may be nil.
+// To change them, use WithControlPoints instead.
 func (b *BSpline) ControlPoints() []float64 {
 	return b.controlPoints
 }
 
-// ControlPointsX calculates the [x] values for each one of the control points.
+// ControlPointsX calculates the x values for each one of the control points.
 // These values are not something used in the evaluation, but are handy to plot the control points,
 // since they are at the center of its area of influence.
 func (b *BSpline) ControlPointsX() []float64 {
@@ -173,10 +173,10 @@ func (b *BSpline) ControlPointsX() []float64 {
 	return xs
 }
 
-// Evaluate 1D B-spline on the value of [x] (some text call this the parameter value, also referred as [t]).
+// Evaluate 1D B-spline on the value of x (some text call this the parameter value, also referred as `t`).
 // This function is the simplest version, but not very fast, and run on CPU.
 //
-// One must set the control points using [WithControlPoints] before calling this function.
+// One must set the control points using WithControlPoints before calling this function.
 func (b *BSpline) Evaluate(x float64) float64 {
 	if len(b.controlPoints) == 0 {
 		exceptions.Panicf("BSpline.Evaluate() require control points to be set using BSpline.WithControlPoints()")
@@ -192,7 +192,7 @@ func (b *BSpline) Evaluate(x float64) float64 {
 	return result
 }
 
-// extrapolate calculates the extrapolation of the b-spline for [x] -- [x] expected to be outside the knots.
+// extrapolate calculates the extrapolation of the b-spline for x -- x is expected to be outside the knots.
 func (b *BSpline) extrapolate(x float64) float64 {
 	switch b.extrapolation {
 	case ExtrapolateZero:
@@ -209,9 +209,9 @@ func (b *BSpline) extrapolate(x float64) float64 {
 				(b.knotValueForControlPoint1 - b.expandedKnots[0])
 			return b.controlPoints[0] + (x-b.expandedKnots[0])*linearCoef
 		} else {
-			linearCoef := (At(b.controlPoints, -1) - At(b.controlPoints, -2)) /
-				(At(b.expandedKnots, -1) - b.knotValueForControlPointM2)
-			return At(b.controlPoints, -1) + (x-At(b.expandedKnots, -1))*linearCoef
+			linearCoef := (at(b.controlPoints, -1) - at(b.controlPoints, -2)) /
+				(at(b.expandedKnots, -1) - b.knotValueForControlPointM2)
+			return at(b.controlPoints, -1) + (x-at(b.expandedKnots, -1))*linearCoef
 		}
 	}
 	return 0.0
@@ -241,9 +241,9 @@ func (b *BSpline) BasisFunction(controlPointIdx, degree int, x float64) float64 
 }
 
 // Derivative creates the derivative BSpline of the given BSpline.
-// Notice the control points must have been set with [WithControlPoints].
+// Notice the control points must have been set with WithControlPoints.
 //
-// The returned [BSpline] have the same knots, and the degree will be one less than the original.
+// The returned BSpline have the same knots, and the degree will be one less than the original.
 // The control points are updated.
 func (b *BSpline) Derivative() *BSpline {
 	knots := b.Knots()

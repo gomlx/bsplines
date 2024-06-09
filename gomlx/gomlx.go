@@ -2,10 +2,15 @@
 // It returns a computation graph that can be combined/used on other computations, e.g., to implement
 // calibration layers for input of neural-networks, or for "KAN - Kolmogorov-Arnold Networks" [1]
 //
+// It is meant to work for batches of inputs, each example with multiple inputs and outputs, pay special
+// attention to the shapes of the control points, inputs and outputs. They are documented in the [Evaluator]
+// function.
+//
 // [1] https://arxiv.org/pdf/2404.19756
 package gomlx
 
 import (
+	. "github.com/gomlx/gomlx/graph"
 	"github.com/gomlx/gomlx/types/shapes"
 	"github.com/gomlx/gomlx/types/slices"
 )

@@ -1,3 +1,13 @@
+// Package plotly implements plotting in Jupyter Notebooks using [github.com/janpfeifer/gonb] (Notebook Kernel) and
+// the Plotly [github.com/MetalBlueberry/go-plotly] library.
+//
+// Use New to create a new Config object, and after configuring it, use Config.Plot to draw the plot.
+//
+// Features:
+//   - B-spline function, visible by default.
+//   - Control Points, visible by default.
+//   - Derivative, non-visible by default.
+//   - Basis functions, non-visible by default.
 package plotly
 
 import (
@@ -16,8 +26,8 @@ type Config struct {
 	marginRatio   float64
 }
 
-// New returns a [Config] object that can be changed.
-// Once finished, call the method [Plot] to actually plot.
+// New returns a Config object that can be changed.
+// Once finished, call Config.Plot to draw the plot in the Jupyter notebook.
 func New(b *bsplines.BSpline) *Config {
 	return &Config{
 		bspline:       b,
