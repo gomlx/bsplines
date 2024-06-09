@@ -141,6 +141,11 @@ func (b *BSpline) Knots() []float64 {
 	return b.expandedKnots[b.degree : len(b.expandedKnots)-b.degree]
 }
 
+// ExpandedKnots return the knots with the clamps (degree repeated values from the beginning and end of the vector).
+func (b *BSpline) ExpandedKnots() []float64 {
+	return b.expandedKnots
+}
+
 // NumControlPoints returns the expected number of control points for the current knots.
 func (b *BSpline) NumControlPoints() int {
 	return len(b.Knots()) + b.degree - 1
