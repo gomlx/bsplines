@@ -141,6 +141,11 @@ func (b *BSpline) Knots() []float64 {
 	return b.expandedKnots[b.degree : len(b.expandedKnots)-b.degree]
 }
 
+// Extrapolation returns the extrapolation currently configured.
+func (b *BSpline) Extrapolation() ExtrapolationType {
+	return b.extrapolation
+}
+
 // ExpandedKnots return the knots with the clamps (degree repeated values from the beginning and end of the vector).
 func (b *BSpline) ExpandedKnots() []float64 {
 	return b.expandedKnots
@@ -209,17 +214,24 @@ func (b *BSpline) extrapolate(x float64) float64 {
 			return b.controlPoints[len(b.controlPoints)-1]
 		}
 	case ExtrapolateLinear:
+		low, high := b.LinearExtrapolationKnotRatios()
 		if x < b.expandedKnots[0] {
-			linearCoef := (b.controlPoints[1] - b.controlPoints[0]) /
-				(b.knotValueForControlPoint1 - b.expandedKnots[0])
+			linearCoef := (b.controlPoints[1] - b.controlPoints[0]) * low
 			return b.controlPoints[0] + (x-b.expandedKnots[0])*linearCoef
 		} else {
-			linearCoef := (at(b.controlPoints, -1) - at(b.controlPoints, -2)) /
-				(at(b.expandedKnots, -1) - b.knotValueForControlPointM2)
+			linearCoef := (at(b.controlPoints, -1) - at(b.controlPoints, -2)) * high
 			return at(b.controlPoints, -1) + (x-at(b.expandedKnots, -1))*linearCoef
 		}
 	}
 	return 0.0
+}
+
+// LinearExtrapolationKnotRatios is used internally for doing linear extrapolation.
+// Exposed only so it can be used by the bsplines/gomlx package.
+func (b *BSpline) LinearExtrapolationKnotRatios() (low, high float64) {
+	low = 1.0 / (b.knotValueForControlPoint1 - b.expandedKnots[0])
+	high = 1.0 / (at(b.expandedKnots, -1) - b.knotValueForControlPointM2)
+	return
 }
 
 // BasisFunction calculates the B-spline basis function arbitrary degree at parameter x.

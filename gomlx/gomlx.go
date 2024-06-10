@@ -124,7 +124,11 @@ func (e *evalData) Eval() *Node {
 	// - l: numOutputs
 	// Result: [batchSize, numOutputs, numInputs]
 	output := Einsum("ijk,jlk->ilj", basis, e.controlPoints)
-
+	if e.bspline.Extrapolation() != bsplines.ExtrapolateZero {
+		// Default extrapolated values are already zero, so extrapolation only needed if != ExtrapolateZero.
+		where, extrapolation := e.Extrapolate()
+		output = Where(where, extrapolation, output)
+	}
 	return output
 }
 
@@ -175,16 +179,81 @@ func last[E any](s []E) E {
 	return s[len(s)-1]
 }
 
-// Extrapolation returns a boolean tensor of which values should be replaced by extrapolation, and
+// Extrapolate returns a boolean tensor of which values should be replaced by extrapolation, and
 // the extrapolated values. Both are shaped `[batchSize, numOutput, numInput]`.
-func (e *evalData) Extrapolation() (where, value *Node) {
+func (e *evalData) Extrapolate() (where, value *Node) {
 	staticKnots := e.bspline.Knots()
 	kFirst := Scalar(e.graph, e.dtype, staticKnots[0])
 	kLast := Scalar(e.graph, e.dtype, last(staticKnots))
-	where = Or(
-		LessThan(e.inputs, kFirst),
-		GreaterOrEqual(e.inputs, kLast))
-	where = ExpandAndBroadcast(where, []int{1}, []int{e.batchSize, e.numOutputs, e.numInputs})
 
+	// broadcastInputs from shape [batchSize, numInputs] to [batchSize, numOutputs, numInputs]
+	broadcastInputs := func(x *Node) *Node {
+		return ExpandAndBroadcast(x, []int{e.batchSize, e.numOutputs, e.numInputs}, []int{1})
+	}
+	expandedInputs := broadcastInputs(e.inputs)
+	tooLow := LessThan(expandedInputs, kFirst)
+	where = Or(
+		tooLow,
+		GreaterOrEqual(expandedInputs, kLast))
+
+	// From shape [numInputs, numOutputs, 1] to [batchSize, numOutputs, numInputs].
+	transposeAndBroadcastControlPoints := func(control *Node) *Node {
+		// Input shape: [numInputs, numOutputs, 1]
+		// Output shape: [batchSize, numOutputs, numInputs]
+		control = TransposeAllDims(control, 2, 1, 0)
+		control = BroadcastToDims(control, e.batchSize, e.numOutputs, e.numInputs)
+		return control
+	}
+
+	switch e.bspline.Extrapolation() {
+	case bsplines.ExtrapolateZero:
+		// Not necessary, since values will already be zero outsize of the knots range.
+		value = Zeros(e.graph, shapes.Make(e.dtype, e.batchSize, e.numOutputs, e.numInputs))
+
+	case bsplines.ExtrapolateConstant:
+		controlFirst := Slice(e.controlPoints, AxisRange(), AxisRange(), AxisElem(0))
+		controlFirst = transposeAndBroadcastControlPoints(controlFirst)
+		controlLast := Slice(e.controlPoints, AxisRange(), AxisRange(), AxisElem(-1))
+		controlLast = transposeAndBroadcastControlPoints(controlLast)
+		value = Where(tooLow, controlFirst, controlLast)
+
+	case bsplines.ExtrapolateLinear:
+		// Low -> for values below the first knot.
+		// High -> for values above the last knot.
+
+		// Shapes: [numInputs, numOutputs, 1]
+		lowKnotRatio, highKnotRatio := e.bspline.LinearExtrapolationKnotRatios()
+		lowStart := Slice(e.controlPoints /*numInputs*/, AxisRange() /*numOutputs*/, AxisRange(), AxisElem(0))
+		lowLinearCoef := Sub(
+			Slice(e.controlPoints /*numInputs*/, AxisRange() /*numOutputs*/, AxisRange(), AxisElem(1)),
+			lowStart)
+		lowLinearCoef = MulScalar(lowLinearCoef, lowKnotRatio)
+		highStart := Slice(e.controlPoints /*numInputs*/, AxisRange() /*numOutputs*/, AxisRange(), AxisElem(-1))
+		highLinearCoef := Sub(
+			highStart,
+			Slice(e.controlPoints /*numInputs*/, AxisRange() /*numOutputs*/, AxisRange(), AxisElem(-2)))
+		highLinearCoef = MulScalar(highLinearCoef, highKnotRatio)
+
+		// Shapes: [batchSize, numInputs]
+		lowDelta := AddScalar(e.inputs, -staticKnots[0])     // x - knots[0], a negative number if x < knots[0]
+		highDelta := AddScalar(e.inputs, -last(staticKnots)) // x - knots[-1]
+
+		// Broadcast everything to [batchSize, numOutputs, numInputs]
+		lowLinearCoef = transposeAndBroadcastControlPoints(lowLinearCoef)
+		lowStart = transposeAndBroadcastControlPoints(lowStart)
+		highLinearCoef = transposeAndBroadcastControlPoints(highLinearCoef)
+		highStart = transposeAndBroadcastControlPoints(highStart)
+		lowDelta = broadcastInputs(lowDelta)
+		highDelta = broadcastInputs(highDelta)
+
+		// Calculate linear extrapolations:
+		lowExtrapolation := Add(
+			Mul(lowDelta, lowLinearCoef),
+			lowStart)
+		highExtrapolation := Add(
+			Mul(highDelta, highLinearCoef),
+			highStart)
+		value = Where(tooLow, lowExtrapolation, highExtrapolation)
+	}
 	return
 }
