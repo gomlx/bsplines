@@ -185,6 +185,6 @@ func (e *evalData) Extrapolation() (where, value *Node) {
 		LessThan(e.inputs, kFirst),
 		GreaterOrEqual(e.inputs, kLast))
 	where = ExpandAndBroadcast(where, []int{1}, []int{e.batchSize, e.numOutputs, e.numInputs})
-	
+
 	return
 }

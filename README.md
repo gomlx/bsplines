@@ -3,7 +3,7 @@
 [![GoDev](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/gomlx/bsplines?tab=doc)
 [![GitHub](https://img.shields.io/github/license/gomlx/bsplines)](https://github.com/Kwynto/gosession/blob/master/LICENSE)
 
-# [Example With Plots](https://gomlx.github.io/bsplines/)
+# [Example With Plots](https://gomlx.github.io/bsplines/bsplines.html)
 
 This library provides 2 implementations of [B-Spline](https://en.wikipedia.org/wiki/B-spline) using the same API: one that evaluates fully in Go (CPU, slower)
 and one using [`GoMLX`](https://github.com/gomlx/gomlx) for ML and/or accelerators.
