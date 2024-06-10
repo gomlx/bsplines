@@ -83,6 +83,7 @@ func Evaluate(b *bsplines.BSpline, inputs, controlPoints *Node) *Node {
 
 	out := (&evalData{
 		bspline:          b,
+		graph:            inputs.Graph(),
 		dtype:            inputs.DType(),
 		batchSize:        inputs.Shape().Dimensions[0],
 		numInputs:        numInputs,
@@ -103,6 +104,7 @@ func Evaluate(b *bsplines.BSpline, inputs, controlPoints *Node) *Node {
 // evalData holds all parameters for building an B-Splines evaluation graph, after all inputs have been checked.
 type evalData struct {
 	bspline                                                      *bsplines.BSpline
+	graph                                                        *Graph
 	dtype                                                        shapes.DType
 	batchSize, numInputs, numOutputs, numControlPoints, numKnots int // dimensions
 	inputs, controlPoints, knots, flatInputs                     *Node
@@ -121,7 +123,9 @@ func (e *evalData) Eval() *Node {
 	// - k: numControlPoints, sum reduced.
 	// - l: numOutputs
 	// Result: [batchSize, numOutputs, numInputs]
-	return Einsum("ijk,jlk->ilj", basis, e.controlPoints)
+	output := Einsum("ijk,jlk->ilj", basis, e.controlPoints)
+
+	return output
 }
 
 // basisFunction will return the basisFunction weights for each of the flatInputs, for each knot.
@@ -164,4 +168,23 @@ func (e *evalData) basisFunction(degree int) *Node {
 	right := Mul(weightsRight, Shift(recursiveBasis, -1, ShiftDirLeft, 1))
 	//right.SetLogged(fmt.Sprintf("right(%d)", degree))
 	return Add(left, right)
+}
+
+// last returns the last element of a slice.
+func last[E any](s []E) E {
+	return s[len(s)-1]
+}
+
+// Extrapolation returns a boolean tensor of which values should be replaced by extrapolation, and
+// the extrapolated values. Both are shaped `[batchSize, numOutput, numInput]`.
+func (e *evalData) Extrapolation() (where, value *Node) {
+	staticKnots := e.bspline.Knots()
+	kFirst := Scalar(e.graph, e.dtype, staticKnots[0])
+	kLast := Scalar(e.graph, e.dtype, last(staticKnots))
+	where = Or(
+		LessThan(e.inputs, kFirst),
+		GreaterOrEqual(e.inputs, kLast))
+	where = ExpandAndBroadcast(where, []int{1}, []int{e.batchSize, e.numOutputs, e.numInputs})
+	
+	return
 }
