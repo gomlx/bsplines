@@ -12,7 +12,7 @@ and one using [`GoMLX`](https://github.com/gomlx/gomlx) for ML and/or accelerato
 
 * Support for zero, constant or linear extrapolation beyond the region defined by the knots.
 * Derivative B-spline.
-* GoMLX version:
+* GoMLX "vector" version:
   * Batch evaluation.
   * Multiple control points -- for various different B-splines to be applied to the same input points.
     They share the same basis function calculation for improved efficiency.
