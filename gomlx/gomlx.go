@@ -14,6 +14,7 @@ import (
 	"github.com/gomlx/exceptions"
 	. "github.com/gomlx/gomlx/graph"
 	"github.com/gomlx/gomlx/types/shapes"
+	"github.com/gomlx/gopjrt/dtypes"
 )
 
 // Evaluate creates the computation graph to evaluate the B-splines defined by b (it's used only for the knots) and
@@ -105,7 +106,7 @@ func Evaluate(b *bsplines.BSpline, inputs, controlPoints *Node) *Node {
 type evalData struct {
 	bspline                                                      *bsplines.BSpline
 	graph                                                        *Graph
-	dtype                                                        shapes.DType
+	dtype                                                        dtypes.DType
 	batchSize, numInputs, numOutputs, numControlPoints, numKnots int // dimensions
 	inputs, controlPoints, knots, flatInputs                     *Node
 }
@@ -140,7 +141,7 @@ func (e *evalData) basisFunction(degree int) *Node {
 		cond := And(
 			GreaterOrEqual(e.flatInputs, e.knots),
 			ShiftLeft(LessThan(e.flatInputs, e.knots), 1, 0.0))
-		p0 := ConvertType(cond, e.dtype) // true -> 1.0, false -> 0.0
+		p0 := ConvertDType(cond, e.dtype) // true -> 1.0, false -> 0.0
 		// after broadcasting p0 is shaped [batchSize*numInputs, numKnots]
 		//p0.SetLogged("basis(0)")
 		return p0
@@ -224,10 +225,10 @@ func (e *evalData) Extrapolate() (where, value *Node) {
 		// Shapes: [numInputs, numOutputs, 1]
 		lowKnotRatio, highKnotRatio := e.bspline.LinearExtrapolationKnotRatios()
 		lowStart := Slice(e.controlPoints /*numInputs*/, AxisRange() /*numOutputs*/, AxisRange(), AxisElem(0))
-		lowLinearCoef := Sub(
+		lowLinearCoefficient := Sub(
 			Slice(e.controlPoints /*numInputs*/, AxisRange() /*numOutputs*/, AxisRange(), AxisElem(1)),
 			lowStart)
-		lowLinearCoef = MulScalar(lowLinearCoef, lowKnotRatio)
+		lowLinearCoefficient = MulScalar(lowLinearCoefficient, lowKnotRatio)
 		highStart := Slice(e.controlPoints /*numInputs*/, AxisRange() /*numOutputs*/, AxisRange(), AxisElem(-1))
 		highLinearCoef := Sub(
 			highStart,
@@ -239,7 +240,7 @@ func (e *evalData) Extrapolate() (where, value *Node) {
 		highDelta := AddScalar(e.inputs, -last(staticKnots)) // x - knots[-1]
 
 		// Broadcast everything to [batchSize, numOutputs, numInputs]
-		lowLinearCoef = transposeAndBroadcastControlPoints(lowLinearCoef)
+		lowLinearCoefficient = transposeAndBroadcastControlPoints(lowLinearCoefficient)
 		lowStart = transposeAndBroadcastControlPoints(lowStart)
 		highLinearCoef = transposeAndBroadcastControlPoints(highLinearCoef)
 		highStart = transposeAndBroadcastControlPoints(highStart)
@@ -248,7 +249,7 @@ func (e *evalData) Extrapolate() (where, value *Node) {
 
 		// Calculate linear extrapolations:
 		lowExtrapolation := Add(
-			Mul(lowDelta, lowLinearCoef),
+			Mul(lowDelta, lowLinearCoefficient),
 			lowStart)
 		highExtrapolation := Add(
 			Mul(highDelta, highLinearCoef),

@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"math/rand/v2"
 	"testing"
+
+	_ "github.com/gomlx/gomlx/backends/xla"
 )
 
 func TestEvaluateSimple(t *testing.T) {
@@ -37,8 +39,8 @@ func TestEvaluateSimple(t *testing.T) {
 		}
 	}
 
-	manager := graphtest.BuildTestManager()
-	exec := NewExec(manager, func(x, controlPoints *Node) *Node {
+	backend := graphtest.BuildTestBackend()
+	exec := NewExec(backend, func(x, controlPoints *Node) *Node {
 		values := Evaluate(b,
 			x,
 			ExpandDims(controlPoints, 1))
@@ -109,12 +111,12 @@ func TestExtrapolation(t *testing.T) {
 	controlPoints := []float64{1.0, 0.7, -0.7, -1.0, -0.7, 0.7, 1.0, 0.7}
 	b := bsplines.NewRegular(3, len(controlPoints)).WithControlPoints(controlPoints)
 
-	manager := graphtest.BuildTestManager()
+	backend := graphtest.BuildTestBackend()
 
 	xs := []float64{-0.1, 0.0, 1.0, 1.1}
 	evalFn := func() []float64 {
 		got := make([]float64, len(xs))
-		exec := NewExec(manager, func(x, controlPoints *Node) *Node {
+		exec := NewExec(backend, func(x, controlPoints *Node) *Node {
 			return Evaluate(b, x, controlPoints)
 		})
 		for ii, x := range xs {
