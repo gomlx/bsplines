@@ -80,7 +80,7 @@ func TestEvaluateBatchMultiInputsAndOutputs(t *testing.T) {
 		for oo := range numOutputs {
 			controlPoints[ii][oo] = make([]float64, numControlPoints)
 			for cc := range numControlPoints {
-				controlPoints[ii][oo][cc] = float64(rng.NormFloat64())
+				controlPoints[ii][oo][cc] = rng.NormFloat64()
 			}
 		}
 	}
@@ -100,7 +100,7 @@ func TestEvaluateBatchMultiInputsAndOutputs(t *testing.T) {
 
 	graphtest.RunTestGraphFn(t, "B-spline batched, multi-inputs, multi-outputs", func(g *Graph) ([]*Node, []*Node) {
 		nodeInputs := Const(g, inputs)
-		nodeControlPoints := ConvertType(Const(g, controlPoints), nodeInputs.DType())
+		nodeControlPoints := ConvertDType(Const(g, controlPoints), nodeInputs.DType())
 		outputs := Evaluate(b, nodeInputs, nodeControlPoints)
 		return []*Node{nodeInputs, nodeControlPoints}, []*Node{outputs}
 	}, []any{want},
