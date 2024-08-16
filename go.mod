@@ -5,8 +5,8 @@ go 1.22
 require (
 	github.com/MetalBlueberry/go-plotly v0.4.0
 	github.com/gomlx/exceptions v0.0.3
-	github.com/gomlx/gomlx v0.10.0
-	github.com/janpfeifer/gonb v0.10.1
+	github.com/gomlx/gomlx v0.11.0
+	github.com/janpfeifer/gonb v0.10.2
 	github.com/stretchr/testify v1.9.0
 )
 
