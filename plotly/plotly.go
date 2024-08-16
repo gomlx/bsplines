@@ -14,7 +14,6 @@ import (
 	"fmt"
 	grob "github.com/MetalBlueberry/go-plotly/graph_objects"
 	"github.com/gomlx/bsplines"
-	xslices "github.com/gomlx/gomlx/types/slices"
 	"github.com/janpfeifer/gonb/gonbui/plotly"
 )
 
@@ -62,7 +61,7 @@ func (c *Config) Plot() error {
 	derivative := c.bspline.Derivative()
 
 	x, bsplineY, derivativeY := make([]float64, c.numPlotPoints), make([]float64, c.numPlotPoints), make([]float64, c.numPlotPoints)
-	first, last := knots[0], xslices.Last(knots)
+	first, last := knots[0], knots[len(knots)-1]
 	delta := last - first
 	first, last = first-c.marginRatio*delta, last+c.marginRatio*delta
 	for ii := range c.numPlotPoints {

@@ -12,10 +12,16 @@ and one using [`GoMLX`](https://github.com/gomlx/gomlx) for ML and/or accelerato
 
 * Support for zero, constant or linear extrapolation beyond the region defined by the knots.
 * Derivative B-spline.
-* GoMLX "vector" version (for GoMLX > v0.11):
+* GoMLX "vector" version in [github.com/gomlx/gomlx/ml/layers/kan](https://github.com/gomlx/gomlx/tree/main/ml/layers/kan)
+  * Building block to build [KAN: Kolmogorov–Arnold Networks](https://arxiv.org/pdf/2404.19756)
   * Batch evaluation.
   * Multiple control points -- for various different B-splines to be applied to the same input points.
     They share the same basis function calculation for improved efficiency.
-  * Building block to build [KAN: Kolmogorov–Arnold Networks](https://arxiv.org/pdf/2404.19756)
 * Plotting using [`GoNB`](https://github.com/janpfeifer/gonb) Jupyter Notebook.
 * See [demo notebook with some plot samples](https://gomlx.github.io/bsplines/). 
+
+## Changes Log
+
+### v0.2.0
+
+* Moved GoMLX code to github.com/gomlx/gomlx/ml/layers/kan, to avoid circular dependency across repositories.
